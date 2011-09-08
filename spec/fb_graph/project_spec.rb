@@ -11,12 +11,14 @@ describe FbGraph::Project, '.new' do
         :name => "Takanori Ishikawa"
       }],
       :start_date => "2008-04",
-      :end_date   => "2008-09"
+      :end_date   => "2008-09",
+      :description => "Something something something"
     }
     project = FbGraph::Project.new(attributes.delete(:id), attributes)
     project.with.should == [FbGraph::User.new(1064067203, :name => "Takanori Ishikawa")]
     project.start_date.should == Date.new(2008, 4)
     project.end_date.should   == Date.new(2008, 9)
+    project.description.should == "Something something something"
   end
 
   it 'should treat 2008-00 style date' do
