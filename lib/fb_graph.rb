@@ -3,6 +3,9 @@ require 'rack/oauth2'
 require 'patch/rack/oauth2/util'
 
 module FbGraph
+  VERSION = ::File.read(
+    ::File.join(::File.dirname(__FILE__), '../VERSION')
+  )
   ROOT_URL = "https://graph.facebook.com"
 
   def self.logger
@@ -12,22 +15,26 @@ module FbGraph
     @@logger = logger
   end
   self.logger = Logger.new(STDOUT)
-  self.logger.progname = 'Paypal::Express'
+  self.logger.progname = 'FbGraph'
 
   def self.debugging?
     @@debugging
   end
   def self.debugging=(boolean)
+    Rack::OAuth2.debugging = boolean
     @@debugging = boolean
   end
   def self.debug!
+    Rack::OAuth2.debug!
     self.debugging = true
   end
   def self.debug(&block)
+    rack_oauth2_original = Rack::OAuth2.debugging?
     original = self.debugging?
-    self.debugging = true
+    debug!
     yield
   ensure
+    Rack::OAuth2.debugging = rack_oauth2_original
     self.debugging = original
   end
   self.debugging = false
@@ -54,9 +61,18 @@ require 'fb_graph/venue'
 require 'fb_graph/work'
 
 require 'fb_graph/node'
+require 'fb_graph/achievement'
 require 'fb_graph/ad_account'
 require 'fb_graph/ad_campaign'
+require 'fb_graph/ad_campaign_stat'
+require 'fb_graph/ad_connection_object'
 require 'fb_graph/ad_group'
+require 'fb_graph/ad_group_stat'
+require 'fb_graph/ad_keyword'
+require 'fb_graph/ad_keyword_suggestion'
+require 'fb_graph/ad_keyword_valid'
+require 'fb_graph/broad_targeting_category'
+require 'fb_graph/reach_estimate.rb'
 require 'fb_graph/album'
 require 'fb_graph/app_request'
 require 'fb_graph/application'
@@ -85,8 +101,12 @@ require 'fb_graph/tab'
 require 'fb_graph/tag'
 require 'fb_graph/thread'
 require 'fb_graph/user'
-require 'fb_graph/test_user' # Load after FbGraph::User
+require 'fb_graph/user_achievement'
 require 'fb_graph/video'
+
+# Load after FbGraph::User
+require 'fb_graph/ad_user'
+require 'fb_graph/test_user'
 
 require 'fb_graph/klass'
 require 'fb_graph/project'

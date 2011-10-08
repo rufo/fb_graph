@@ -1,6 +1,7 @@
 module FbGraph
   class Application < Node
     include Connections::Accounts
+    include Connections::Achievements
     include Connections::Albums
     include Connections::Events
     include Connections::Feed
@@ -20,15 +21,35 @@ module FbGraph
     # include Connections::Translations
     include Connections::Videos
 
-    attr_accessor :name, :description, :category, :link, :secret
+    @@attributes = [
+      :name,
+      :description,
+      :canvas_name,
+      :category,
+      :company,
+      :icon_url,
+      :subcategory,
+      :link,
+      :logo_url,
+      :daily_active_users,
+      :weekly_active_users,
+      :monthly_active_users,
+      :secret
+    ]
+    attr_accessor *@@attributes
 
     def initialize(client_id, attributes = {})
       super
-      @name         = attributes[:name]
-      @description  = attributes[:description]
-      @category     = attributes[:category]
-      @link         = attributes[:link]
-      @secret       = attributes[:secret]
+      @@attributes.each do |key|
+        # NOTE:
+        # For some reason, Graph API returns daily_active_users, weekly_active_users, monthly_active_users as JSON string.
+        value = if [:daily_active_users, :weekly_active_users, :monthly_active_users].include?(key)
+          attributes[key].to_i
+        else
+          attributes[key]
+        end
+        self.send("#{key}=", value)
+      end
     end
 
     def get_access_token(secret = nil)

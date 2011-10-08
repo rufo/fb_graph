@@ -59,7 +59,9 @@ module FbGraph
     end
 
     def http_client
-      _http_client_ = HTTPClient.new
+      _http_client_ = HTTPClient.new(
+        :agent_name => "FbGraph (#{VERSION})"
+      )
       _http_client_.request_filter << Debugger::RequestFilter.new if FbGraph.debugging?
       _http_client_
     end
@@ -112,27 +114,23 @@ module FbGraph
       when 'null'
         nil
       else
+        # NOTE: User#app_request! returns ID as a JSON string not as a JSON object..
+        if response.body.gsub('"', '').to_i.to_s == response.body.gsub('"', '')
+          return response.body.gsub('"', '')
+        end
+
         _response_ = JSON.parse(response.body)
         _response_ = case _response_
         when Array
           _response_.map!(&:with_indifferent_access)
         when Hash
           _response_ = _response_.with_indifferent_access
-          handle_httpclient_error(_response_) if _response_[:error]
+          Exception.handle_httpclient_error(_response_, response.headers) if _response_[:error]
           _response_
         end
       end
     rescue JSON::ParserError
-      raise Exception.new(response.status, 'Unparsable Error Response')
-    end
-
-    def handle_httpclient_error(response)
-      case response[:error][:type]
-      when /OAuth/
-        raise Unauthorized.new("#{response[:error][:type]} :: #{response[:error][:message]}")
-      else
-        raise BadRequest.new("#{response[:error][:type]} :: #{response[:error][:message]}")
-      end
+      raise Exception.new(response.status, "Unparsable Response: #{response.body}")
     end
   end
 end

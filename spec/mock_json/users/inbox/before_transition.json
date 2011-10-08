@@ -1,6 +1,27 @@
 {
    "data": [
       {
+          "id": "1234567890",
+          "from": {
+              "name": "Some Event",
+              "start_time": "2011-08-19T21:00:00",
+              "end_time": "2011-08-20T04:00:00",
+              "location": "Somewhere",
+              "id": "1234567890"
+          },
+          "to": {
+              "data": [{
+                  "name": "Nov",
+                  "id": "579612276"
+              }]
+          },
+          "subject": "Subject",
+          "message": "Message",
+          "updated_time": "2011-08-21T08:24:30+0000",
+          "unread": 1,
+          "unseen": 0
+      },
+      {
          "id": "1390404535644",
          "from": {
             "name": "Nov Matake",

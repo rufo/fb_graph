@@ -1,9 +1,10 @@
 module FbGraph
   class User < Node
     include Connections::Accounts
+    include Connections::AdAccounts
     include Connections::Activities
     include Connections::Albums
-		include Connections::AppRequests
+    include Connections::AppRequests
     include Connections::Books
     include Connections::Checkins
     include Connections::Events
@@ -21,6 +22,7 @@ module FbGraph
     include Connections::Links
     include Connections::Movies
     include Connections::Music
+    include Connections::MutualFriends
     include Connections::Notes
     include Connections::Outbox
     include Connections::Payments
@@ -32,6 +34,7 @@ module FbGraph
     include Connections::Tagged
     include Connections::Television
     include Connections::Threads
+    include Connections::UserAchievements
     include Connections::Videos
     extend Searchable
 
