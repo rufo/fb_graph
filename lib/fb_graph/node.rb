@@ -4,12 +4,14 @@ module FbGraph
   class Node
     include Comparison
 
-    attr_accessor :identifier, :endpoint, :access_token
+    attr_accessor :identifier, :endpoint, :access_token, :raw_attributes
 
-    def initialize(identifier, options = {})
-      @identifier   = identifier
-      @endpoint     = File.join(ROOT_URL, identifier.to_s)
-      @access_token = options[:access_token]
+    def initialize(identifier, attributes = {})
+      @identifier         = identifier
+      @endpoint           = File.join(ROOT_URL, identifier.to_s)
+      @access_token       = attributes[:access_token]
+      @raw_attributes     = attributes
+      @cached_collections = {}
     end
 
     def fetch(options = {})
@@ -24,16 +26,21 @@ module FbGraph
     end
 
     def connection(connection, options = {})
-      collection = options[:cached_collection] || Collection.new(get(options.merge(:connection => connection)))
-      Connection.new(self, connection, options.merge(:collection => collection))
+      Connection.new(
+        self,
+        connection,
+        options.merge(
+          :collection => collection_for(connection, options)
+        )
+      )
     end
 
     def update(options = {})
-      post(options)
+      post options
     end
 
     def destroy(options = {})
-      delete(options)
+      delete options
     end
 
     protected
@@ -59,14 +66,28 @@ module FbGraph
     end
 
     def http_client
-      _http_client_ = HTTPClient.new(
-        :agent_name => "FbGraph (#{VERSION})"
-      )
-      _http_client_.request_filter << Debugger::RequestFilter.new if FbGraph.debugging?
-      _http_client_
+      FbGraph.http_client
     end
 
     private
+
+    def collection_for(connection, options = {})
+      collection = if @cached_collections.has_key?(connection) && options.blank?
+        @cached_collections[connection]
+      else
+        get options.merge(:connection => connection)
+      end
+      Collection.new collection
+    end
+
+    def cache_collections(attributes, *connections)
+      if (attributes.keys - [:access_token]).present?
+        connections.each do |connection|
+          @cached_collections[connection] = attributes[connection]
+        end
+      end
+    end
+    alias_method :cache_collection, :cache_collections
 
     def build_endpoint(params = {})
       File.join([self.endpoint, params.delete(:connection), params.delete(:connection_scope)].compact.collect(&:to_s))
@@ -83,7 +104,7 @@ module FbGraph
       _params_.each do |key, value|
         next if value.blank?
         _params_[key] = case value
-        when String, Symbol, Numeric, Rack::OAuth2::AccessToken::Legacy
+        when String, Symbol, Numeric, Date, Time, Rack::OAuth2::AccessToken::Legacy
           value.to_s
         when IO, Tempfile
           value
@@ -92,6 +113,7 @@ module FbGraph
           # ref) http://blog.livedoor.jp/idea_and_players/archives/5184702.html
           value.tempfile
         else
+          puts value.class
           value.to_json
         end
       end
@@ -114,19 +136,16 @@ module FbGraph
       when 'null'
         nil
       else
-        # NOTE: User#app_request! returns ID as a JSON string not as a JSON object..
         if response.body.gsub('"', '').to_i.to_s == response.body.gsub('"', '')
-          return response.body.gsub('"', '')
-        end
-
-        _response_ = JSON.parse(response.body)
-        _response_ = case _response_
-        when Array
-          _response_.map!(&:with_indifferent_access)
-        when Hash
-          _response_ = _response_.with_indifferent_access
-          Exception.handle_httpclient_error(_response_, response.headers) if _response_[:error]
-          _response_
+          # NOTE: User#app_request! returns ID as a JSON string not as a JSON object..
+          response.body.gsub('"', '')
+        else
+          _response_ = JSON.parse(response.body).with_indifferent_access
+          if (200...300).include?(response.status)
+            _response_
+          else
+            Exception.handle_httpclient_error(_response_, response.headers)
+          end
         end
       end
     rescue JSON::ParserError

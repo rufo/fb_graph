@@ -150,8 +150,8 @@ https://github.com/nov/fb_graph/wiki
   me = FbGraph::User.me(ACCESS_TOKEN)
   event = me.event!(
     :name => 'FbGraph test event',
-    :start_time => 1.week.from_now.to_i,
-    :end_time => 2.week.from_now.to_i
+    :start_time => 1.week.from_now,
+    :end_time => 2.week.from_now
   )
   bool = event.attending!(
     :access_token => ACCESS_TOKEN
@@ -231,14 +231,14 @@ See more here: http://developers.facebook.com/docs/authentication/fb_sig/
 
   # in callback
   client.authorization_code = params[:code]
-  access_token = client.access_token!  # => Rack::OAuth2::AccessToken
+  access_token = client.access_token! :client_auth_body # => Rack::OAuth2::AccessToken
   FbGraph::User.me(access_token).fetch # => FbGraph::User
 
-==== Session Key Exchange
+==== Extend Access Token Lifetime
 
   # setup client
   fb_auth = FbGraph::Auth.new(YOUR_APP_ID, YOUR_APPLICATION_SECRET)
-  fb_auth.from_session_key('my-old-session-key')
+  fb_auth.exchange_token! 'short-life-access-token'
   fb_auth.access_token # => Rack::OAuth2::AccessToken
 
 
@@ -258,6 +258,11 @@ https://gist.github.com/752974
 Not tested well yet.
 Sample is here.
 https://gist.github.com/752914
+
+=== More Examples?
+
+See GitHub wiki for more examples.
+https://github.com/nov/fb_graph/wiki
 
 == Note on Patches/Pull Requests
  

@@ -23,9 +23,7 @@ describe FbGraph::Auth do
       {:cookie => 'invalid'}
     end
     it 'should raise FbGraph::VerificationFailed' do
-      expect do
-        auth
-      end.should raise_exception(FbGraph::Auth::VerificationFailed)
+      expect { auth }.to raise_exception(FbGraph::Auth::VerificationFailed)
     end
   end
 
@@ -35,9 +33,7 @@ describe FbGraph::Auth do
     end
 
     it 'should raise FbGraph::VerificationFailed' do
-      expect do
-        auth
-      end.should raise_exception(FbGraph::Auth::VerificationFailed)
+      expect { auth }.to raise_exception(FbGraph::Auth::VerificationFailed)
     end
   end
 
@@ -73,9 +69,7 @@ describe FbGraph::Auth do
     end
 
     it 'should exchange code with access token' do
-      expect {
-        auth.from_cookie(cookie)
-      }.should request_to '/oauth/access_token', :post
+      expect { auth.from_cookie(cookie) }.to request_to '/oauth/access_token', :post
     end
 
     it 'should setup user and access_token' do
@@ -102,6 +96,38 @@ describe FbGraph::Auth do
         lambda do
           auth.from_cookie('invalid')
         end.should raise_exception(FbGraph::Auth::VerificationFailed)
+      end
+    end
+
+    context 'when Rack::OAuth2::Client::Error occurred' do
+      context 'when BadRequest' do
+        it 'should raise FbGraph::BadRequest' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [400, 'BadRequest'] do
+            lambda do
+              auth.from_cookie(cookie)
+            end.should raise_exception FbGraph::BadRequest
+          end
+        end
+      end
+
+      context 'when Unauthorized' do
+        it 'should raise FbGraph::Unauthorized' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [401, 'Unauthorized'] do
+            lambda do
+              auth.from_cookie(cookie)
+            end.should raise_exception FbGraph::Unauthorized
+          end
+        end
+      end
+
+      context 'otherwise' do
+        it 'should raise FbGraph::Exception' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [403, 'Forbidden'] do
+            lambda do
+              auth.from_cookie(cookie)
+            end.should raise_exception FbGraph::Exception
+          end
+        end
       end
     end
   end
@@ -132,6 +158,17 @@ describe FbGraph::Auth do
       )
     end
 
+    context 'when expires included' do
+      let :signed_request do
+        "bzMUNepndPnmce-QdJqvkigxr_6iEzOf-ZNl-ZitvpA.eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImV4cGlyZXMiOjEzMjA2NjAwMDAsImlzc3VlZF9hdCI6MTI5ODc4MzczOSwib2F1dGhfdG9rZW4iOiIxMzQxNDU2NDMyOTQzMjJ8MmI4YTZmOTc1NTJjNmRjZWQyMDU4MTBiLTU3OTYxMjI3NnxGS1o0akdKZ0JwN2k3bFlrOVhhUk1QZ3lhNnMiLCJ1c2VyIjp7ImNvdW50cnkiOiJqcCIsImxvY2FsZSI6ImVuX1VTIiwiYWdlIjp7Im1pbiI6MjF9fSwidXNlcl9pZCI6IjU3OTYxMjI3NiJ9"
+      end
+
+      it 'should have expires_in' do
+        auth.from_signed_request(signed_request)
+        auth.access_token.expires_in.should be_a Integer
+      end
+    end
+
     context 'when invalid signed_request given' do
       it 'should raise FbGraph::VerificationFailed' do
         lambda do
@@ -141,26 +178,44 @@ describe FbGraph::Auth do
     end
   end
 
-  describe "#from_session_key" do
-    let(:session_key) { 'my_session_key'}
-
-    it "should exchange the session key for an oauth token" do
-      mock_graph :post, '/oauth/exchange_sessions', 'exchange_sessions_response' do
-        auth.access_token.should be_nil
-
-        auth.from_session_key(session_key)
-        auth.access_token.should be_a Rack::OAuth2::AccessToken::Legacy
-        auth.access_token.access_token.should == "my_oauth_token"
+  describe "#exchange_token!" do
+    it 'should get new token' do
+      mock_graph :post, '/oauth/access_token', 'token_with_expiry' do
+        auth.exchange_token! 'old_token'
+        auth.access_token.access_token.should == 'new_token'
+        auth.access_token.expires_in.should == 3600
       end
     end
 
+    context 'when Rack::OAuth2::Client::Error occurred' do
+      context 'when BadRequest' do
+        it 'should raise FbGraph::BadRequest' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [400, 'BadRequest'] do
+            lambda do
+              auth.exchange_token! 'old_token'
+            end.should raise_exception FbGraph::BadRequest
+          end
+        end
+      end
 
-    it "should handle null responses" do
-      mock_graph :post, '/oauth/exchange_sessions', 'exchange_sessions_null_response' do
-        auth.access_token.should be_nil
+      context 'when Unauthorized' do
+        it 'should raise FbGraph::Unauthorized' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [401, 'Unauthorized'] do
+            lambda do
+              auth.exchange_token! 'old_token'
+            end.should raise_exception FbGraph::Unauthorized
+          end
+        end
+      end
 
-        auth.from_session_key(session_key)
-        auth.access_token.should be_nil
+      context 'otherwise' do
+        it 'should raise FbGraph::Exception' do
+          mock_graph :post, 'oauth/access_token', 'blank', :status => [403, 'Forbidden'] do
+            lambda do
+              auth.exchange_token! 'old_token'
+            end.should raise_exception FbGraph::Exception
+          end
+        end
       end
     end
   end

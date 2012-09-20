@@ -17,11 +17,14 @@ module FbGraph
 
       def block!(*users)
         options = users.extract_options!
-        blocked = post options.merge(:connection => :blocked, :uid => Array(users).collect(&:identifier).join(','))
+        blocked = post options.merge(
+          :connection => :blocked,
+          :uid => Array(users).flatten.collect(&:identifier).join(',')
+        )
         blocked.delete_if do |user_id, succeeded|
           !succeeded
         end.keys.map! do |user_id|
-          User.new(user_id, :access_token => options[:access_token] || self.access_token)
+          User.new user_id, :access_token => (options[:access_token] || self.access_token)
         end
       end
 
